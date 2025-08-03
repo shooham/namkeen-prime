@@ -1,0 +1,170 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Namkeen Prime Holo-Futurism Design System */
+
+@layer base {
+  :root {
+    /* Background Colors */
+    --bg-primary: 0 0% 4%; /* #0A0A0A - Primary dark background */
+    --bg-secondary: 0 0% 12%; /* #1E1E1E - Layered surfaces */
+    
+    /* Brand Colors */
+    --primary-green: 100 67% 41%; /* #49B618 - Main interactive color */
+    --accent-glow: 84 100% 50%; /* #76FF03 - Neon glow effects */
+    
+    /* Text Colors */
+    --text-primary: 0 0% 96%; /* #F5F5F5 - Primary text */
+    --text-secondary: 130 31% 70%; /* #A5D6A7 - Secondary text */
+    
+    /* State Colors */
+    --state-success: 145 100% 45%; /* #00E676 - Success states */
+    --state-error: 4 100% 65%; /* #FF5252 - Error states */
+    
+    /* Border & Surfaces */
+    --border-standard: 0 0% 23%; /* #3B3B3B - Standard borders */
+    --surface-glass: 0 0% 100% / 0.05; /* Glass morphism */
+    
+    /* Legacy shadcn compatibility */
+    --background: var(--bg-primary);
+    --foreground: var(--text-primary);
+    --card: var(--bg-secondary);
+    --card-foreground: var(--text-primary);
+    --popover: var(--bg-secondary);
+    --popover-foreground: var(--text-primary);
+    --primary: var(--primary-green);
+    --primary-foreground: var(--text-primary);
+    --secondary: var(--bg-secondary);
+    --secondary-foreground: var(--text-primary);
+    --muted: var(--bg-secondary);
+    --muted-foreground: var(--text-secondary);
+    --accent: var(--accent-glow);
+    --accent-foreground: var(--bg-primary);
+    --destructive: var(--state-error);
+    --destructive-foreground: var(--text-primary);
+    --border: var(--border-standard);
+    --input: var(--border-standard);
+    --ring: var(--primary-green);
+    --radius: 0.5rem;
+    
+    /* Animation & Effects */
+    --transition-smooth: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1.0);
+    --glow-primary: 0 0 20px hsl(var(--primary-green) / 0.5);
+    --glow-accent: 0 0 30px hsl(var(--accent-glow) / 0.6);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-inter;
+    background: linear-gradient(135deg, hsl(var(--bg-primary)), hsl(var(--bg-secondary)));
+    min-height: 100vh;
+  }
+
+  /* Typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-orbitron font-bold;
+  }
+
+  /* Holo-Futurism Base Styles */
+  .holo-card {
+    @apply bg-card/50 backdrop-blur-sm border border-border rounded-lg;
+    background: linear-gradient(135deg, hsl(var(--bg-secondary) / 0.8), hsl(var(--bg-secondary) / 0.4));
+  }
+
+  .holo-glow {
+    box-shadow: 0 0 15px transparent;
+    transition: var(--transition-smooth);
+  }
+
+  .holo-glow:hover {
+    box-shadow: var(--glow-primary);
+    transform: scale(1.02);
+  }
+
+  .accent-glow {
+    box-shadow: var(--glow-accent);
+  }
+
+  /* Data Visualization Background Elements */
+  .data-grid {
+    background-image: 
+      linear-gradient(hsl(var(--primary-green) / 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary-green) / 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+
+  /* Shimmer Loading Animation */
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--accent-glow) / 0.3),
+      transparent
+    );
+    animation: shimmer 2s infinite;
+  }
+
+  /* Glitch Effect */
+  @keyframes glitch {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-2px); }
+    40% { transform: translateX(2px); }
+    60% { transform: translateX(-1px); }
+    80% { transform: translateX(1px); }
+  }
+
+  .glitch {
+    animation: glitch 0.3s ease-in-out;
+  }
+
+  /* Holographic Gradient */
+  .holo-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary-green)),
+      hsl(var(--accent-glow)),
+      hsl(var(--primary-green))
+    );
+    background-size: 200% 200%;
+    animation: holo-shift 4s ease-in-out infinite;
+  }
+
+  @keyframes holo-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

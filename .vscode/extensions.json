@@ -1,0 +1,9 @@
+{
+  "recommendations": [],
+  "unwantedRecommendations": [
+    "ms-vscode.vscode-typescript-next",
+    "ms-vscode.vscode-json",
+    "ms-vscode.vscode-css",
+    "ms-vscode.vscode-html"
+  ]
+} 
