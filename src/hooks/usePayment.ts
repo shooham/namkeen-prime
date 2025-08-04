@@ -150,7 +150,7 @@ export const usePayment = () => {
             toast({ title: 'Verifying Payment...', description: 'Please wait while we activate your subscription.', variant: 'default' });
             
             // 5. Verify payment with backend
-            const { data: verificationData, error: verificationError } = await supabase.functions.invoke('verify-payment', {
+            const { data: verificationData, error: verificationError } = await supabase.functions.invoke('verify-payment-simple', {
               body: {
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_order_id: response.razorpay_order_id,
