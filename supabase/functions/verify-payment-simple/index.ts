@@ -91,9 +91,31 @@ Deno.serve(async (req) => {
       actualUserId = 'c1e2092f-362e-42c9-bff3-df34f53a3661';
     }
 
-    // Create subscription for actual user
+    // Get plan details to calculate correct end date
+    const planResponse = await fetch(`${supabaseUrl}/rest/v1/subscription_plans?id=eq.${actualPlanId}`, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    let planDurationDays = 30; // Default fallback
+    let planName = 'Premium';
+    
+    if (planResponse.ok) {
+      const plans = await planResponse.json();
+      if (plans && plans.length > 0) {
+        planDurationDays = plans[0].duration_days || 30;
+        planName = plans[0].name || 'Premium';
+        console.log('✅ Plan details:', { name: planName, duration: planDurationDays });
+      }
+    }
+
+    // Create subscription for actual user with correct duration
     const subscriptionEndDate = new Date();
-    subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30);
+    subscriptionEndDate.setDate(subscriptionEndDate.getDate() + planDurationDays);
 
     const subscriptionResponse = await fetch(`${supabaseUrl}/rest/v1/user_subscriptions`, {
       method: 'POST',
@@ -146,8 +168,9 @@ Deno.serve(async (req) => {
       subscription: {
         user_id: actualUserId,
         plan_id: actualPlanId,
+        plan_name: planName,
         status: 'active',
-        duration_days: 30
+        duration_days: planDurationDays
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -171,21 +171,31 @@ export const usePayment = () => {
               });
             } else if (verificationData?.success) {
               console.log('✅ Payment verified successfully:', verificationData);
+              const planName = verificationData.subscription?.plan_name || 'Premium';
+              const durationDays = verificationData.subscription?.duration_days || 30;
               toast({ 
                 title: 'Payment Successful! 🎉', 
-                description: `Your ${verificationData.subscription?.duration_days || 30}-day subscription is now active!`, 
+                description: `Your ${planName} plan (${durationDays} days) is now active!`, 
                 variant: 'default' 
               });
               
-              // Trigger custom event to refresh subscription status
+              // Trigger immediate subscription refresh
               window.dispatchEvent(new CustomEvent('subscription-updated'));
               
-              // Wait a moment before refreshing to let user see the success message
+              // Force multiple refresh attempts to ensure update
               setTimeout(() => {
-                // Force refresh subscription status before page reload
                 window.dispatchEvent(new CustomEvent('subscription-updated'));
+              }, 500);
+              
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('subscription-updated'));
+              }, 1000);
+              
+              // Final page reload as fallback after showing success message
+              setTimeout(() => {
+                console.log('🔄 Reloading page to ensure subscription status is updated');
                 window.location.reload();
-              }, 2000);
+              }, 3000);
             } else {
               console.error('Unexpected verification response:', verificationData);
               toast({ 

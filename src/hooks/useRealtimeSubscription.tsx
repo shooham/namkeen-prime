@@ -222,8 +222,11 @@ export const useRealtimeSubscription = () => {
 
     // Listen for custom subscription update events (from payment success)
     const handleSubscriptionUpdate = () => {
-      console.log('🔄 Custom subscription update event received, refreshing...');
-      setTimeout(checkSubscriptionStatus, 1000);
+      console.log('🔄 Custom subscription update event received, refreshing immediately...');
+      // Clear any existing debounce
+      sessionStorage.removeItem(`subscription_check_${user.id}`);
+      // Immediate refresh
+      checkSubscriptionStatus();
     };
 
     window.addEventListener('subscription-updated', handleSubscriptionUpdate);

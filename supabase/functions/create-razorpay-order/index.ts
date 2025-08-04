@@ -72,11 +72,53 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Simple hardcoded order for testing
+    // Get plan details from database
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.log('❌ No Supabase config');
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Fetch plan details
+    const planResponse = await fetch(`${supabaseUrl}/rest/v1/subscription_plans?id=eq.${body.planId}`, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!planResponse.ok) {
+      console.log('❌ Failed to fetch plan details');
+      return new Response(JSON.stringify({ error: 'Plan not found' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const plans = await planResponse.json();
+    if (!plans || plans.length === 0) {
+      console.log('❌ Plan not found in database');
+      return new Response(JSON.stringify({ error: 'Invalid plan ID' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const plan = plans[0];
+    console.log('📋 Plan details:', { name: plan.name, price: plan.price, duration: plan.duration_days });
+
+    // Create order with actual plan price
     const orderData = {
-      amount: 24900, // ₹249 in paise
+      amount: Math.round(parseFloat(plan.price) * 100), // Convert to paise
       currency: 'INR',
-      receipt: `test_${Date.now()}`.slice(0, 40)
+      receipt: `receipt_${body.planId}_${Date.now()}`.slice(0, 40)
     };
 
     console.log('💰 Order:', JSON.stringify(orderData));
@@ -107,9 +149,6 @@ Deno.serve(async (req) => {
     console.log('✅ Order created:', order.id);
 
     // Store order in database
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
     if (supabaseUrl && supabaseServiceKey) {
       const insertResponse = await fetch(`${supabaseUrl}/rest/v1/orders`, {
         method: 'POST',
