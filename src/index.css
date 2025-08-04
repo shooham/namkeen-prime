@@ -167,4 +167,71 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Mobile Video Player Styles */
+  .mobile-video-container {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  .mobile-video-container video {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  /* Fullscreen video styles */
+  .mobile-video-container:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    background: black;
+  }
+
+  .mobile-video-container:-moz-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    background: black;
+  }
+
+  .mobile-video-container:fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    background: black;
+  }
+
+  /* iOS Safari specific video fullscreen */
+  video::-webkit-media-controls {
+    display: none !important;
+  }
+
+  video::-webkit-media-controls-enclosure {
+    display: none !important;
+  }
+
+  /* Prevent zoom on double tap for mobile video */
+  .mobile-video-container * {
+    touch-action: manipulation;
+  }
+
+  /* Mobile landscape orientation styles */
+  @media screen and (orientation: landscape) and (max-height: 500px) {
+    .mobile-video-fullscreen {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999 !important;
+      background: black !important;
+    }
+  }
 }

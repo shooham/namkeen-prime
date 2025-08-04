@@ -79,6 +79,7 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
   const [rotation, setRotation] = useState(0); // 0, 90, 180, 270 degrees
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileControls, setShowMobileControls] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
 
   // Playback speeds
   const playbackSpeeds = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -146,14 +147,41 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
 
   const toggleFullscreen = () => {
     const container = containerRef.current;
-    if (!container) return;
+    const video = videoRef.current;
+    if (!container || !video) return;
 
     if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      container.requestFullscreen().catch(err => {
-        console.error('🎬 HLS Player: Fullscreen error:', err);
+      document.exitFullscreen().catch(err => {
+        console.error('🎬 HLS Player: Exit fullscreen error:', err);
       });
+    } else {
+      // Try different fullscreen methods for better mobile support
+      const requestFullscreen = container.requestFullscreen || 
+                               (container as any).webkitRequestFullscreen || 
+                               (container as any).mozRequestFullScreen || 
+                               (container as any).msRequestFullscreen;
+      
+      if (requestFullscreen) {
+        requestFullscreen.call(container).catch((err: any) => {
+          console.error('🎬 HLS Player: Fullscreen error:', err);
+          
+          // Fallback for mobile devices - try video element fullscreen
+          if (isMobile && video.webkitEnterFullscreen) {
+            try {
+              video.webkitEnterFullscreen();
+            } catch (videoErr) {
+              console.error('🎬 HLS Player: Video fullscreen error:', videoErr);
+            }
+          }
+        });
+      } else if (isMobile && video.webkitEnterFullscreen) {
+        // iOS Safari fallback
+        try {
+          video.webkitEnterFullscreen();
+        } catch (err) {
+          console.error('🎬 HLS Player: iOS fullscreen error:', err);
+        }
+      }
     }
   };
 
@@ -202,17 +230,37 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
     const userAgent = navigator.userAgent.toLowerCase();
     const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
     const isSmallScreen = window.innerWidth <= 768;
+    const isLandscapeNow = window.innerWidth > window.innerHeight;
+    
     setIsMobile(isMobileDevice || isSmallScreen);
+    setIsLandscape(isLandscapeNow);
+    
+    // Auto-show controls on mobile when orientation changes
+    if (isMobileDevice && isLandscapeNow !== isLandscape) {
+      setTimeout(() => {
+        setShowMobileControls(true);
+        setShowControls(true);
+      }, 100);
+    }
   };
 
   const toggleMobileControls = () => {
-    setShowMobileControls(!showMobileControls);
-    if (!showMobileControls) {
-      setTimeout(() => {
-        if (isPlaying) {
+    if (isMobile) {
+      setShowMobileControls(true);
+      setShowControls(true);
+      
+      // Clear any existing timeout
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+      
+      // Auto-hide after 3 seconds if playing
+      if (isPlaying) {
+        controlsTimeoutRef.current = setTimeout(() => {
           setShowMobileControls(false);
-        }
-      }, 2000);
+          setShowControls(false);
+        }, 3000);
+      }
     }
   };
 
@@ -262,14 +310,16 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
     if (isMobile) {
       setShowMobileControls(true);
     }
-    controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying) {
+    
+    // Only auto-hide if playing
+    if (isPlaying) {
+      controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
         if (isMobile) {
           setShowMobileControls(false);
         }
-      }
-    }, isMobile ? 2000 : 3000);
+      }, isMobile ? 4000 : 3000); // Longer timeout for mobile
+    }
   }, [isPlaying, isMobile]);
 
   // Handle mouse movement to show controls
@@ -277,19 +327,32 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
     resetControlsTimeout();
   }, [resetControlsTimeout]);
 
-  // Mobile device detection
+  // Mobile device detection and orientation handling
   useEffect(() => {
     checkMobileDevice();
+    
     const handleResize = () => {
       checkMobileDevice();
+    };
+    
+    const handleOrientationChange = () => {
+      // Reset controls visibility on orientation change
+      setTimeout(() => {
+        resetControlsTimeout();
+      }, 100);
     };
     
     // Add null check before adding event listener
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
+      window.addEventListener('orientationchange', handleOrientationChange);
+      
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('orientationchange', handleOrientationChange);
+      };
     }
-  }, []);
+  }, [resetControlsTimeout]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -396,15 +459,33 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
   // Fullscreen change handler
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isFullscreenNow = !!(document.fullscreenElement || 
+                                 (document as any).webkitFullscreenElement || 
+                                 (document as any).mozFullScreenElement || 
+                                 (document as any).msFullscreenElement);
+      setIsFullscreen(isFullscreenNow);
+      
+      // Show controls when entering/exiting fullscreen
+      if (isFullscreenNow || !isFullscreenNow) {
+        resetControlsTimeout();
+      }
     };
 
     // Add null check before adding event listener
     if (typeof document !== 'undefined') {
       document.addEventListener('fullscreenchange', handleFullscreenChange);
-      return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+      
+      return () => {
+        document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+      };
     }
-  }, []);
+  }, [resetControlsTimeout]);
 
   // Initialize HLS
   useEffect(() => {
@@ -593,20 +674,41 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative bg-black rounded-lg overflow-hidden group ${className}`}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => !isPlaying && setShowControls(true)}
-      onClick={isMobile ? toggleMobileControls : undefined}
-      onTouchStart={isMobile ? toggleMobileControls : undefined}
+      className={`relative bg-black rounded-lg overflow-hidden group ${className} ${isMobile ? 'mobile-video-container' : ''} ${isFullscreen ? 'fixed inset-0 z-50 rounded-none mobile-video-fullscreen' : ''}`}
+      onMouseMove={!isMobile ? handleMouseMove : undefined}
+      onMouseLeave={!isMobile ? () => !isPlaying && setShowControls(true) : undefined}
+      onClick={isMobile ? (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleMobileControls();
+      } : undefined}
+      onTouchStart={isMobile ? (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleMobileControls();
+      } : undefined}
     >
       <video
         ref={videoRef}
         poster={poster}
         className="w-full h-full object-contain"
-        style={{ transform: `rotate(${rotation}deg)` }}
+        style={{ 
+          transform: `rotate(${rotation}deg)`,
+          maxWidth: '100%',
+          maxHeight: '100%'
+        }}
         playsInline
         preload="metadata"
-        onClick={togglePlay}
+        controls={false}
+        webkit-playsinline="true"
+        x5-playsinline="true"
+        x5-video-player-type="h5"
+        x5-video-player-fullscreen="true"
+        onClick={isMobile ? undefined : togglePlay}
+        onTouchEnd={isMobile ? (e) => {
+          e.preventDefault();
+          toggleMobileControls();
+        } : undefined}
       />
 
       {/* Hidden canvas for thumbnails */}
