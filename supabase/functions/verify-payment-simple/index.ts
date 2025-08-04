@@ -63,7 +63,35 @@ Deno.serve(async (req) => {
       console.log('✅ Order updated to paid');
     }
 
-    // Create subscription for hardcoded user
+    // Get user ID from the order
+    const orderResponse = await fetch(`${supabaseUrl}/rest/v1/orders?order_id=eq.${razorpay_order_id}`, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    let actualUserId = null;
+    let actualPlanId = planId || '3300dc04-4a87-4817-a95b-ffb24c095556';
+
+    if (orderResponse.ok) {
+      const orders = await orderResponse.json();
+      if (orders && orders.length > 0) {
+        actualUserId = orders[0].user_id;
+        actualPlanId = orders[0].plan_id || actualPlanId;
+        console.log('✅ Found order with user_id:', actualUserId, 'plan_id:', actualPlanId);
+      }
+    }
+
+    if (!actualUserId) {
+      console.log('❌ Could not find user_id from order, using fallback');
+      // This should not happen in production, but keeping as fallback
+      actualUserId = 'c1e2092f-362e-42c9-bff3-df34f53a3661';
+    }
+
+    // Create subscription for actual user
     const subscriptionEndDate = new Date();
     subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30);
 
@@ -76,8 +104,8 @@ Deno.serve(async (req) => {
         'Prefer': 'return=minimal'
       },
       body: JSON.stringify({
-        user_id: 'c1e2092f-362e-42c9-bff3-df34f53a3661', // Hardcoded user ID
-        plan_id: planId || '3300dc04-4a87-4817-a95b-ffb24c095556',
+        user_id: actualUserId, // Use actual user ID from order
+        plan_id: actualPlanId,
         status: 'active',
         start_date: new Date().toISOString().split('T')[0],
         end_date: subscriptionEndDate.toISOString().split('T')[0],
@@ -87,15 +115,37 @@ Deno.serve(async (req) => {
 
     if (subscriptionResponse.ok) {
       console.log('✅ Subscription created');
+      
+      // Trigger real-time update for subscription changes
+      const notifyResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/notify_subscription_update`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: actualUserId
+        })
+      });
+      
+      if (notifyResponse.ok) {
+        console.log('✅ Real-time notification sent');
+      } else {
+        console.log('⚠️ Real-time notification failed (non-critical)');
+      }
     } else {
       console.log('❌ Subscription creation failed');
+      const errorText = await subscriptionResponse.text();
+      console.log('Subscription error details:', errorText);
     }
 
     return new Response(JSON.stringify({
       success: true,
       message: 'Payment verified and subscription created!',
       subscription: {
-        user_id: 'c1e2092f-362e-42c9-bff3-df34f53a3661',
+        user_id: actualUserId,
+        plan_id: actualPlanId,
         status: 'active',
         duration_days: 30
       }

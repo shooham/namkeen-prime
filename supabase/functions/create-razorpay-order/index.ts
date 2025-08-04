@@ -12,6 +12,41 @@ Deno.serve(async (req) => {
   try {
     console.log('🚀 Function called');
     
+    // Get user from JWT token
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      console.log('❌ No authorization header');
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Extract JWT token
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Decode JWT to get user ID (simple base64 decode for payload)
+    let userId = null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      userId = payload.sub;
+      console.log('👤 User ID from token:', userId);
+    } catch (e) {
+      console.log('❌ Invalid token:', e.message);
+      return new Response(JSON.stringify({ error: 'Invalid authentication token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!userId) {
+      console.log('❌ No user ID in token');
+      return new Response(JSON.stringify({ error: 'User ID not found in token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     const body = await req.json();
     console.log('📥 Body:', JSON.stringify(body));
     
@@ -85,7 +120,7 @@ Deno.serve(async (req) => {
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify({
-          user_id: 'c1e2092f-362e-42c9-bff3-df34f53a3661', // Hardcoded for now
+          user_id: userId, // Use actual user ID from JWT token
           plan_id: body.planId,
           order_id: order.id,
           amount: order.amount / 100, // Convert back to rupees

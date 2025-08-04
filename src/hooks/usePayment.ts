@@ -177,8 +177,13 @@ export const usePayment = () => {
                 variant: 'default' 
               });
               
+              // Trigger custom event to refresh subscription status
+              window.dispatchEvent(new CustomEvent('subscription-updated'));
+              
               // Wait a moment before refreshing to let user see the success message
               setTimeout(() => {
+                // Force refresh subscription status before page reload
+                window.dispatchEvent(new CustomEvent('subscription-updated'));
                 window.location.reload();
               }, 2000);
             } else {
