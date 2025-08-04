@@ -73,23 +73,23 @@ export const useRealtimeSubscription = () => {
 
       console.log('✅ Valid session found for user:', session.user.id);
 
-      // Query production subscriptions table with product details
-      // CRITICAL FIX: Ensuring we use user_id consistently
+      // Query user_subscriptions table with plan details
+      // CRITICAL FIX: Using correct table name
       const { data: subscriptions, error } = await supabase
-        .from('subscriptions')
+        .from('user_subscriptions')
         .select(`
           *,
-          products (
+          subscription_plans (
             name,
             description,
             price,
             features
           )
         `)
-        .eq('user_id', user.id) // VERIFIED: Using user_id, not profile_id
+        .eq('user_id', user.id)
         .eq('status', 'active')
-        .gte('current_period_end', new Date().toISOString())
-        .order('current_period_end', { ascending: false });
+        .gte('end_date', new Date().toISOString().split('T')[0])
+        .order('end_date', { ascending: false });
 
       if (error) {
         console.error('❌ Error fetching subscriptions:', error);
@@ -99,12 +99,12 @@ export const useRealtimeSubscription = () => {
         
         // Fallback query without join
         const { data: fallbackSubs, error: fallbackError } = await supabase
-          .from('subscriptions')
+          .from('user_subscriptions')
           .select('*')
           .eq('user_id', user.id)
           .eq('status', 'active')
-          .gte('current_period_end', new Date().toISOString())
-          .order('current_period_end', { ascending: false });
+          .gte('end_date', new Date().toISOString().split('T')[0])
+          .order('end_date', { ascending: false });
 
         if (fallbackError) {
           console.error('❌ Fallback query also failed:', fallbackError);
@@ -129,13 +129,13 @@ export const useRealtimeSubscription = () => {
         
         if (fallbackSubs && fallbackSubs.length > 0) {
           const activeSubscription = fallbackSubs[0];
-          const expiresAt = new Date(activeSubscription.current_period_end);
+          const expiresAt = new Date(activeSubscription.end_date);
           
-          // Get product details separately
+          // Get plan details separately
           const { data: productData } = await supabase
-            .from('products')
+            .from('subscription_plans')
             .select('name, description, price, features')
-            .eq('id', activeSubscription.product_id)
+            .eq('id', activeSubscription.plan_id)
             .single();
           
           console.log('✅ Active subscription found (fallback):', {
@@ -160,22 +160,22 @@ export const useRealtimeSubscription = () => {
 
       if (subscriptions && subscriptions.length > 0) {
         const activeSubscription = subscriptions[0];
-        const expiresAt = new Date(activeSubscription.current_period_end);
+        const expiresAt = new Date(activeSubscription.end_date);
         
         console.log('✅ Active subscription found:', {
           isSubscribed: true,
-          plan: activeSubscription.products?.name,
+          plan: activeSubscription.subscription_plans?.name,
           expiresAt,
-          productName: activeSubscription.products?.name
+          productName: activeSubscription.subscription_plans?.name
         });
 
         setSubscriptionStatus({
           isSubscribed: true,
-          plan: activeSubscription.products?.name || 'Premium',
+          plan: activeSubscription.subscription_plans?.name || 'Premium',
           expiresAt,
           isLoading: false,
           error: null,
-          productName: activeSubscription.products?.name || null
+          productName: activeSubscription.subscription_plans?.name || null
         });
       } else {
         console.log('❌ No active subscription found');
