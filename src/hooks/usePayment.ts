@@ -104,10 +104,15 @@ export const usePayment = () => {
       }
 
       console.log('📞 Calling create-razorpay-order edge function...');
+      console.log('🔑 Session token present:', !!session.access_token);
+      
       const { data: orderResponse, error: orderError } = await supabase.functions.invoke<OrderResponse>('create-razorpay-order', {
         body: { 
           planId
         },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
 
       if (orderError) {
@@ -152,6 +157,9 @@ export const usePayment = () => {
                 razorpay_signature: response.razorpay_signature,
                 planId: planId,
               },
+              headers: {
+                Authorization: `Bearer ${session.access_token}`
+              }
             });
 
             if (verificationError) {
