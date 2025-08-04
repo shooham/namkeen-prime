@@ -39,35 +39,64 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     console.log('🔐 Auth header present:', !!authHeader);
     
+    if (!authHeader) {
+      console.error('❌ No authorization header found');
+      throw new Error('Authorization header missing. Please login again.');
+    }
+    
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader! } },
+      global: { headers: { Authorization: authHeader } },
     });
     
+    console.log('🔍 Attempting to get user...');
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    
     if (userError) {
       console.error('❌ User authentication error:', userError);
-      throw userError;
+      throw new Error(`Authentication failed: ${userError.message}`);
     }
+    
     if (!user) {
       console.error('❌ No user found in session');
-      throw new Error('User not authenticated.');
+      throw new Error('User session expired. Please login again.');
     }
+    
     console.log('✅ User authenticated:', user.email);
 
     // 3. Fetch plan details from the database using the admin client
+    console.log('🔍 Fetching plan details for:', planId);
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: plan, error: planError } = await supabaseAdmin
       .from('subscription_plans')
-      .select('price')
+      .select('price, name')
       .eq('id', planId)
       .single();
 
-    if (planError) throw new Error('Subscription plan not found or query failed.');
-    if (!plan) throw new Error('Subscription plan does not exist.');
+    if (planError) {
+      console.error('❌ Plan query error:', planError);
+      throw new Error(`Subscription plan not found: ${planError.message}`);
+    }
+    
+    if (!plan) {
+      console.error('❌ Plan not found in database');
+      throw new Error('Subscription plan does not exist.');
+    }
+    
+    console.log('✅ Plan found:', plan.name, '- ₹' + plan.price);
 
     const amountInPaise = Math.round(plan.price * 100);
+    console.log('💰 Amount in paise:', amountInPaise);
 
-    // 4. Create an order with Razorpay
+    // 4. Check Razorpay credentials
+    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+      console.error('❌ Razorpay credentials missing');
+      throw new Error('Payment gateway configuration error');
+    }
+    
+    console.log('🔑 Razorpay key ID present:', !!RAZORPAY_KEY_ID);
+
+    // 5. Create an order with Razorpay
+    console.log('📞 Creating Razorpay order...');
     const razorpayResponse = await fetch('https://api.razorpay.com/v1/orders', {
       method: 'POST',
       headers: {
@@ -86,11 +115,14 @@ serve(async (req) => {
     });
 
     const orderData = await razorpayResponse.json();
+    console.log('📋 Razorpay response status:', razorpayResponse.status);
 
     if (!razorpayResponse.ok) {
-      console.error('Razorpay Error:', orderData);
-      throw new Error(orderData.error.description || 'Razorpay order creation failed.');
+      console.error('❌ Razorpay Error:', orderData);
+      throw new Error(orderData.error?.description || 'Razorpay order creation failed.');
     }
+    
+    console.log('✅ Razorpay order created:', orderData.id);
 
     // 5. Store order in database
     const { error: insertError } = await supabaseAdmin
