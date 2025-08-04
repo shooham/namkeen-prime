@@ -35,13 +35,25 @@ const Navigation: React.FC<NavigationProps> = ({ isAuthenticated = false }) => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-2 group">
+            <div 
+              className="flex items-center space-x-2 group cursor-pointer hover:scale-105 transition-transform duration-300"
+              onClick={() => navigate('/')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate('/');
+                }
+              }}
+              aria-label="Go to home page"
+            >
               <div className="relative">
                 <Play className="h-8 w-8 text-primary-green group-hover:text-accent-glow transition-colors duration-300" />
                 <div className="absolute inset-0 h-8 w-8 bg-accent-glow/20 rounded-full blur-lg group-hover:bg-accent-glow/40 transition-all duration-300" />
               </div>
-              <h1 className="text-xl font-orbitron font-bold text-text-primary">
-                Namkeen <span className="text-primary-green holo-gradient bg-clip-text text-transparent">Prime</span>
+              <h1 className="text-xl font-orbitron font-bold text-text-primary group-hover:text-primary-green transition-colors duration-300">
+                Namkeen <span className="text-primary-green holo-gradient bg-clip-text text-transparent group-hover:text-accent-glow">Prime</span>
               </h1>
             </div>
           </div>
