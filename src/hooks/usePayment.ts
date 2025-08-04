@@ -106,8 +106,7 @@ export const usePayment = () => {
       console.log('📞 Calling create-razorpay-order edge function...');
       const { data: orderResponse, error: orderError } = await supabase.functions.invoke<OrderResponse>('create-razorpay-order', {
         body: { 
-          planId, 
-          userId: session.user.id 
+          planId
         },
       });
 

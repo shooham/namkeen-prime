@@ -22,19 +22,37 @@ serve(async (req) => {
   }
 
   try {
+    console.log('🚀 create-razorpay-order function called');
+    
     // 1. Get the plan ID from the request body
-    const { planId } = await req.json();
+    const requestBody = await req.json();
+    console.log('📥 Request body:', requestBody);
+    
+    const { planId } = requestBody;
     if (!planId) {
+      console.error('❌ Plan ID is missing from request');
       throw new Error('Plan ID is required.');
     }
+    console.log('✅ Plan ID received:', planId);
 
     // 2. Authenticate the user
+    const authHeader = req.headers.get('Authorization');
+    console.log('🔐 Auth header present:', !!authHeader);
+    
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: req.headers.get('Authorization')! } },
+      global: { headers: { Authorization: authHeader! } },
     });
+    
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError) throw userError;
-    if (!user) throw new Error('User not authenticated.');
+    if (userError) {
+      console.error('❌ User authentication error:', userError);
+      throw userError;
+    }
+    if (!user) {
+      console.error('❌ No user found in session');
+      throw new Error('User not authenticated.');
+    }
+    console.log('✅ User authenticated:', user.email);
 
     // 3. Fetch plan details from the database using the admin client
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
