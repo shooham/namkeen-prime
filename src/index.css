@@ -234,4 +234,40 @@
       background: black !important;
     }
   }
+
+  /* Enhanced mobile fullscreen styles */
+  .mobile-video-container.fullscreen-active {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999 !important;
+    background: black !important;
+    border-radius: 0 !important;
+  }
+
+  .mobile-video-container.fullscreen-active video {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: contain !important;
+  }
+
+  /* Force landscape orientation for mobile video */
+  @media screen and (max-width: 768px) {
+    .mobile-video-container:fullscreen {
+      transform: rotate(0deg) !important;
+    }
+    
+    .mobile-video-container:fullscreen video {
+      transform: rotate(0deg) !important;
+    }
+  }
+
+  /* Hide browser UI in fullscreen */
+  .mobile-video-container:fullscreen {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
 }

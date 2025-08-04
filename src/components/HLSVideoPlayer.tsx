@@ -7,13 +7,13 @@ import {
   VolumeX,
   Maximize,
   Minimize,
-  RotateCcw,
   Settings,
   SkipForward,
   SkipBack,
   Rewind,
-  Lock,
-  Unlock
+  Maximize2,
+  Monitor,
+  Square
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -72,14 +72,13 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [availableQualities, setAvailableQualities] = useState<Array<{ level: number, height: number, bitrate: number }>>([]);
   const [currentQuality, setCurrentQuality] = useState(-1); // -1 for auto
-  const [isOrientationLocked, setIsOrientationLocked] = useState(false);
   const [bufferedRanges, setBufferedRanges] = useState<TimeRanges | null>(null);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [keyboardFeedback, setKeyboardFeedback] = useState<string | null>(null);
-  const [rotation, setRotation] = useState(0); // 0, 90, 180, 270 degrees
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileControls, setShowMobileControls] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [videoFit, setVideoFit] = useState<'contain' | 'cover' | 'fill' | 'none'>('contain');
 
   // Playback speeds
   const playbackSpeeds = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -145,41 +144,67 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
     setCurrentTime(newTime);
   };
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = async () => {
     const container = containerRef.current;
     const video = videoRef.current;
     if (!container || !video) return;
 
     if (document.fullscreenElement) {
-      document.exitFullscreen().catch(err => {
-        console.error('🎬 HLS Player: Exit fullscreen error:', err);
-      });
-    } else {
-      // Try different fullscreen methods for better mobile support
-      const requestFullscreen = container.requestFullscreen || 
-                               (container as any).webkitRequestFullscreen || 
-                               (container as any).mozRequestFullScreen || 
-                               (container as any).msRequestFullscreen;
-      
-      if (requestFullscreen) {
-        requestFullscreen.call(container).catch((err: any) => {
-          console.error('🎬 HLS Player: Fullscreen error:', err);
-          
-          // Fallback for mobile devices - try video element fullscreen
-          if (isMobile && video.webkitEnterFullscreen) {
-            try {
-              video.webkitEnterFullscreen();
-            } catch (videoErr) {
-              console.error('🎬 HLS Player: Video fullscreen error:', videoErr);
-            }
+      // Exit fullscreen
+      try {
+        await document.exitFullscreen();
+        
+        // Unlock orientation when exiting fullscreen on mobile
+        if (isMobile && 'screen' in window && 'orientation' in window.screen) {
+          try {
+            await (window.screen.orientation as any).unlock?.();
+          } catch (err) {
+            console.log('Orientation unlock not supported');
           }
-        });
-      } else if (isMobile && video.webkitEnterFullscreen) {
-        // iOS Safari fallback
-        try {
+        }
+      } catch (err) {
+        console.error('🎬 HLS Player: Exit fullscreen error:', err);
+      }
+    } else {
+      // Enter fullscreen
+      try {
+        // For mobile devices, try to lock orientation to landscape first
+        if (isMobile && 'screen' in window && 'orientation' in window.screen) {
+          try {
+            await (window.screen.orientation as any).lock?.('landscape');
+            console.log('🎬 HLS Player: Locked to landscape orientation');
+          } catch (err) {
+            console.log('🎬 HLS Player: Orientation lock not supported, continuing...');
+          }
+        }
+
+        // Try different fullscreen methods for better mobile support
+        const requestFullscreen = container.requestFullscreen || 
+                                 (container as any).webkitRequestFullscreen || 
+                                 (container as any).mozRequestFullScreen || 
+                                 (container as any).msRequestFullscreen;
+        
+        if (requestFullscreen) {
+          await requestFullscreen.call(container, { navigationUI: 'hide' });
+          console.log('🎬 HLS Player: Entered fullscreen mode');
+        } else if (isMobile && video.webkitEnterFullscreen) {
+          // iOS Safari fallback
           video.webkitEnterFullscreen();
-        } catch (err) {
-          console.error('🎬 HLS Player: iOS fullscreen error:', err);
+          console.log('🎬 HLS Player: Using iOS video fullscreen');
+        } else {
+          throw new Error('Fullscreen not supported');
+        }
+      } catch (err) {
+        console.error('🎬 HLS Player: Fullscreen error:', err);
+        
+        // Final fallback for mobile devices - try video element fullscreen
+        if (isMobile && video.webkitEnterFullscreen) {
+          try {
+            video.webkitEnterFullscreen();
+            console.log('🎬 HLS Player: Using video fullscreen fallback');
+          } catch (videoErr) {
+            console.error('🎬 HLS Player: Video fullscreen error:', videoErr);
+          }
         }
       }
     }
@@ -209,22 +234,22 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
     setCurrentQuality(level);
   };
 
-  const toggleOrientationLock = () => {
-    if ('screen' in window && 'orientation' in window.screen) {
-      if (isOrientationLocked) {
-        (window.screen.orientation as any).unlock?.();
-      } else {
-        (window.screen.orientation as any).lock?.('landscape').catch(() => {
-          console.log('Orientation lock not supported');
-        });
-      }
-      setIsOrientationLocked(!isOrientationLocked);
+  const changeVideoFit = (fit: 'contain' | 'cover' | 'fill' | 'none') => {
+    setVideoFit(fit);
+    showFeedback(`Video fit: ${fit}`);
+  };
+
+  const getVideoFitLabel = (fit: string) => {
+    switch (fit) {
+      case 'contain': return 'Best Fit';
+      case 'cover': return 'Crop to Fill';
+      case 'fill': return 'Stretch';
+      case 'none': return 'Original Size';
+      default: return 'Best Fit';
     }
   };
 
-  const rotateVideo = () => {
-    setRotation((prevRotation) => (prevRotation + 90) % 360);
-  };
+
 
   const checkMobileDevice = () => {
     const userAgent = navigator.userAgent.toLowerCase();
@@ -441,11 +466,7 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
           event.preventDefault();
           setShowKeyboardHelp(!showKeyboardHelp);
           break;
-        case 'KeyR':
-          event.preventDefault();
-          rotateVideo();
-          showFeedback(`Rotated to ${(rotation + 90) % 360}°`);
-          break;
+
       }
     };
 
@@ -454,7 +475,7 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
     }
-  }, [togglePlay, toggleMute, toggleFullscreen, skip, volume, handleVolumeChange, duration, playbackSpeed, changePlaybackSpeed, showKeyboardHelp, rotation, rotateVideo]);
+  }, [togglePlay, toggleMute, toggleFullscreen, skip, volume, handleVolumeChange, duration, playbackSpeed, changePlaybackSpeed, showKeyboardHelp]);
 
   // Fullscreen change handler
   useEffect(() => {
@@ -674,7 +695,7 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative bg-black rounded-lg overflow-hidden group ${className} ${isMobile ? 'mobile-video-container' : ''} ${isFullscreen ? 'fixed inset-0 z-50 rounded-none mobile-video-fullscreen' : ''}`}
+      className={`relative bg-black rounded-lg overflow-hidden group ${className} ${isMobile ? 'mobile-video-container' : ''} ${isFullscreen ? (isMobile ? 'fullscreen-active' : 'fixed inset-0 z-50 rounded-none') : ''}`}
       onMouseMove={!isMobile ? handleMouseMove : undefined}
       onMouseLeave={!isMobile ? () => !isPlaying && setShowControls(true) : undefined}
       onClick={isMobile ? (e) => {
@@ -691,11 +712,16 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
       <video
         ref={videoRef}
         poster={poster}
-        className="w-full h-full object-contain"
+        className={`w-full h-full ${
+          videoFit === 'contain' ? 'object-contain' :
+          videoFit === 'cover' ? 'object-cover' :
+          videoFit === 'fill' ? 'object-fill' :
+          'object-none'
+        }`}
         style={{ 
-          transform: `rotate(${rotation}deg)`,
           maxWidth: '100%',
-          maxHeight: '100%'
+          maxHeight: '100%',
+          backgroundColor: 'black'
         }}
         playsInline
         preload="metadata"
@@ -704,6 +730,7 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
         x5-playsinline="true"
         x5-video-player-type="h5"
         x5-video-player-fullscreen="true"
+        x5-video-orientation="landscape"
         onClick={isMobile ? undefined : togglePlay}
         onTouchEnd={isMobile ? (e) => {
           e.preventDefault();
@@ -974,28 +1001,51 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
                   </DropdownMenu>
                 )}
 
-                {/* Orientation lock */}
-                {typeof window !== 'undefined' && 'screen' in window && (
-                  <Button
-                    onClick={toggleOrientationLock}
-                    size="sm"
-                    variant="ghost"
-                    className={`text-white hover:bg-white/20 ${isOrientationLocked ? 'bg-white/10' : ''}`}
-                  >
-                    {isOrientationLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                  </Button>
-                )}
-
-                {/* Rotation */}
-                <Button
-                  onClick={rotateVideo}
-                  size="sm"
-                  variant="ghost"
-                  className="text-white hover:bg-white/20"
-                  title={`Rotate (${rotation}°)`}
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
+                {/* Video Fit */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-white hover:bg-white/20 text-xs"
+                      title="Video Fit"
+                    >
+                      <Monitor className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuLabel>Video Fit</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => changeVideoFit('contain')}
+                      className={`text-white hover:bg-white/20 ${videoFit === 'contain' ? 'bg-white/10' : ''}`}
+                    >
+                      <Square className="w-4 h-4 mr-2" />
+                      Best Fit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => changeVideoFit('cover')}
+                      className={`text-white hover:bg-white/20 ${videoFit === 'cover' ? 'bg-white/10' : ''}`}
+                    >
+                      <Maximize2 className="w-4 h-4 mr-2" />
+                      Crop to Fill
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => changeVideoFit('fill')}
+                      className={`text-white hover:bg-white/20 ${videoFit === 'fill' ? 'bg-white/10' : ''}`}
+                    >
+                      <Maximize className="w-4 h-4 mr-2" />
+                      Stretch
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => changeVideoFit('none')}
+                      className={`text-white hover:bg-white/20 ${videoFit === 'none' ? 'bg-white/10' : ''}`}
+                    >
+                      <Monitor className="w-4 h-4 mr-2" />
+                      Original Size
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* Settings */}
                 <DropdownMenu open={showSettings} onOpenChange={setShowSettings}>
@@ -1162,16 +1212,47 @@ export const HLSVideoPlayer: React.FC<HLSVideoPlayerProps> = ({
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* Rotation */}
-                <Button
-                  onClick={rotateVideo}
-                  size="sm"
-                  variant="ghost"
-                  className="text-white hover:bg-white/20 p-2"
-                  title={`Rotate (${rotation}°)`}
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
+                {/* Video Fit */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-white hover:bg-white/20 p-2"
+                      title="Video Fit"
+                    >
+                      <Monitor className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuLabel>Video Fit</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => changeVideoFit('contain')}
+                      className={`text-white hover:bg-white/20 ${videoFit === 'contain' ? 'bg-white/10' : ''}`}
+                    >
+                      Best Fit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => changeVideoFit('cover')}
+                      className={`text-white hover:bg-white/20 ${videoFit === 'cover' ? 'bg-white/10' : ''}`}
+                    >
+                      Crop to Fill
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => changeVideoFit('fill')}
+                      className={`text-white hover:bg-white/20 ${videoFit === 'fill' ? 'bg-white/10' : ''}`}
+                    >
+                      Stretch
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => changeVideoFit('none')}
+                      className={`text-white hover:bg-white/20 ${videoFit === 'none' ? 'bg-white/10' : ''}`}
+                    >
+                      Original Size
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* Settings */}
                 <DropdownMenu open={showSettings} onOpenChange={setShowSettings}>
