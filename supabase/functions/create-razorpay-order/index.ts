@@ -74,12 +74,36 @@ serve(async (req) => {
       throw new Error(orderData.error.description || 'Razorpay order creation failed.');
     }
 
-    // 5. Return the created order details to the client
+    // 5. Store order in database
+    const { error: insertError } = await supabaseAdmin
+      .from('orders')
+      .insert({
+        user_id: user.id,
+        plan_id: planId,
+        order_id: orderData.id,
+        amount: orderData.amount / 100, // Convert back to rupees for storage
+        currency: orderData.currency,
+        status: 'created',
+        created_at: new Date().toISOString()
+      });
+
+    if (insertError) {
+      console.error('Database insert error:', insertError);
+      // Don't fail the entire process for this
+    }
+
+    // 6. Return the created order details to the client in expected format
     return new Response(
       JSON.stringify({ 
-        orderId: orderData.id, 
-        amount: orderData.amount,
-        razorpayKeyId: RAZORPAY_KEY_ID,
+        success: true,
+        order: {
+          id: orderData.id,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          receipt: orderData.receipt,
+          status: orderData.status
+        },
+        keyId: RAZORPAY_KEY_ID,
         userEmail: user.email,
         userName: user.user_metadata?.full_name || ''
       }),

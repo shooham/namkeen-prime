@@ -12,40 +12,40 @@ interface SubscriptionPlan {
 
 const subscriptionPlans: SubscriptionPlan[] = [
   {
-    id: 'f720b8a6-6120-4867-9108-4ca4988bdd9f',
+    id: 'f11e0058-a21e-4579-b7fd-9fb60520dbde',
     name: 'Mini Plan',
     price: 99,
-    duration: 30
-  },
-  {
-    id: '5f1f9ac2-c3e9-4f8c-bb98-e3f264ec6593',
-    name: 'Monthly Plan',
-    price: 249,
-    duration: 30
-  },
-  {
-    id: '0310460a-2fe5-41e8-a2bf-734b0bc439b3',
-    name: '3 Month Plan',
-    price: 499,
-    duration: 90
-  },
-  {
-    id: 'bc1a1ad0-0ef9-4110-985d-439dede001d3',
-    name: 'Yearly Plan',
-    price: 1299,
-    duration: 365
+    duration: 7
   },
   {
     id: '8f13366e-e466-46f4-b490-b2e5dc795840',
     name: 'Quick Plan',
     price: 149,
+    duration: 15
+  },
+  {
+    id: '3300dc04-4a87-4817-a95b-ffb24c095556',
+    name: 'Monthly Plan',
+    price: 249,
     duration: 30
   },
   {
-    id: 'c2d5d235-202c-422e-845c-02d8c44a2e14',
-    name: '6 Month',
+    id: '544b4a7f-41ea-4967-91ea-1c1aa536f27b',
+    name: '3 Month Plan',
+    price: 499,
+    duration: 90
+  },
+  {
+    id: '9898e85a-c5d7-4725-bd58-eb63aa11afe3',
+    name: '6 Month Plan',
     price: 649,
     duration: 180
+  },
+  {
+    id: '5b65a512-6562-4400-8182-791e678f25fe',
+    name: 'Yearly Plan',
+    price: 1299,
+    duration: 365
   }
 ];
 
@@ -63,15 +63,15 @@ export const SubscriptionButton: React.FC = () => {
     });
     console.log('👤 Current user:', user?.email);
     console.log('⚡ Loading state:', loading);
-    
+
     if (loading) {
       console.log('⏳ Payment already in progress, ignoring click');
       return;
     }
-    
+
     try {
       console.log('🎯 Starting payment initiation...');
-      await initiatePayment(plan);
+      await initiatePayment(plan.id);
       console.log('✅ Payment initiation completed');
     } catch (error) {
       console.error('❌ Payment initiation failed:', error);
@@ -121,9 +121,9 @@ export const SubscriptionButton: React.FC = () => {
                 ₹{plan.price}
               </div>
               <p className="text-gray-600 mb-6">
-                {plan.duration === 30 ? 'Monthly' : 'Yearly'} Plan
+                {plan.duration} days access
               </p>
-              
+
               <Button
                 onClick={() => handleSubscribe(plan)}
                 disabled={loading}

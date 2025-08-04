@@ -68,8 +68,9 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
-    }    /
-/ 3. Initialize Supabase client
+    }
+
+    // 3. Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const razorpayKeySecret = Deno.env.get('RAZORPAY_KEY_SECRET');
